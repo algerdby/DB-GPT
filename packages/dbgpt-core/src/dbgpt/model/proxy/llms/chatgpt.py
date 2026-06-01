@@ -1,4 +1,5 @@
 import logging
+import os
 from concurrent.futures import Executor
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, List, Optional, Type, Union
@@ -249,6 +250,20 @@ class OpenAILLMClient(ProxyLLMClient):
         # Apply openai kwargs
         for k, v in self._openai_kwargs.items():
             payload[k] = v
+        # DBGPT_OPENROUTER_NATIVE: OpenRouter provider routing via extra_body
+        _or_order = os.environ.get("OPENROUTER_PROVIDER_ORDER", "").strip()
+        if _or_order:
+            _providers = [p.strip() for p in _or_order.split(",") if p.strip()]
+            _allow_fb = os.environ.get("OPENROUTER_ALLOW_FALLBACKS", "false").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            _eb = payload.setdefault("extra_body", {})
+            if not isinstance(_eb, dict):
+                _eb = {}
+                payload["extra_body"] = _eb
+            _eb["provider"] = {"order": _providers, "allow_fallbacks": _allow_fb}
         if request.temperature:
             payload["temperature"] = request.temperature
         if request.max_new_tokens:
